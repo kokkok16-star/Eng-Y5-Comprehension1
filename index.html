@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A fun Halloween story - Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+        }
+        /* Background image with overlay */
+        .bg-custom {
+            background-image: url('image_529c08.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        .bg-overlay {
+            background-color: rgba(15, 23, 42, 0.85); /* Dark slate overlay */
+            backdrop-filter: blur(4px);
+        }
+        
+        /* Dashboard header mimicking the screenshot */
+        .header-card {
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            border: 1px solid #334155;
+            position: relative;
+            overflow: hidden;
+        }
+        .header-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: radial-gradient(#475569 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        /* Animations */
+        .correct-anim { animation: pulseGreen 0.5s ease; }
+        .wrong-anim { animation: shakeRed 0.5s ease; }
+        
+        /* New Vocab Card Styles */
+        .vocab-card { transition: all 0.2s; user-select: none; }
+        .vocab-selected { border-color: #a855f7 !important; background-color: #faf5ff !important; box-shadow: 0 0 0 2px #e9d5ff; transform: scale(1.02); }
+        .vocab-matched { opacity: 0.7; pointer-events: none; }
+        
+        @keyframes pulseGreen {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        @keyframes shakeRed {
+            0%, 100% { transform: translateX(0); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        }
+        
+        input[type="radio"] { accent-color: #8b5cf6; width: 1.25rem; height: 1.25rem; }
+        .hide { display: none !important; }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 bg-custom">
+    <!-- Overlay for readability -->
+    <div class="fixed inset-0 bg-overlay z-0"></div>
+
+    <div id="app-container" class="relative z-10 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-6">
+        
+        <!-- Left Column: Content Area (Login / Quiz) -->
+        <div class="flex-1 space-y-0 w-full relative">
+            
+            <!-- LOGIN VIEW -->
+            <div id="login-view" class="shadow-2xl rounded-2xl overflow-hidden flex flex-col bg-white">
+                
+                <!-- Top Dark Header -->
+                <div class="header-card p-6 md:p-8 border-t-8 border-purple-600">
+                    <div class="flex justify-between items-start mb-6">
+                        <span class="inline-flex items-center gap-2 bg-indigo-900/50 text-indigo-200 border border-indigo-700/50 px-3 py-1 rounded-full text-sm font-medium">
+                            <span>📚</span> A1 Level • Slow English Series
+                        </span>
+                        <span class="bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1 rounded-full text-sm font-medium">
+                            Step 1 of 12
+                        </span>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-bold text-white mb-2 tracking-tight">A fun Halloween story 👻🔦</h1>
+                    <p class="text-indigo-200/80">Reading & Listening Comprehension Interactive Quiz</p>
+                </div>
+                
+                <!-- Bottom White Form Area -->
+                <div class="bg-white p-6 md:p-8 rounded-b-2xl relative">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                                <span class="text-purple-600">👩‍🎓</span> Student Registration / 学生登录
+                            </h2>
+                            <p class="text-gray-500 text-sm mt-1">请填写英文姓名与指定后缀的 Email 账号以开启练习。</p>
+                        </div>
+                        <button id="teacher-access-btn" class="text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 py-2 px-4 rounded-lg transition flex items-center gap-2">
+                            <span>👨‍🏫</span> 教师专区 / Teacher Portal
+                        </button>
+                    </div>
+                    
+                    <form id="login-form" class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Student English Name / 英文姓名 <span class="text-red-500">*</span></label>
+                            <input type="text" id="student-name" required placeholder="e.g. Tan Ah Kow" 
+                                   class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">MOE Email / IDME 账号 <span class="text-red-500">*</span></label>
+                            <input type="email" id="student-email" required placeholder="例如: g-12345678@moe-dl.edu.my" 
+                                   class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900">
+                            <p id="email-error" class="text-red-500 text-sm mt-1 hide">Email must end with @moe-dl.edu.my</p>
+                        </div>
+                        
+                        <div class="pt-4 flex justify-end">
+                            <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg transition duration-200 shadow-md flex items-center gap-2">
+                                Next / 下一步 ➔
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- VOCAB MATCHING VIEW (New Pre-Quiz Activity) -->
+            <div id="vocab-view" class="shadow-2xl rounded-2xl overflow-hidden hide flex-col h-full bg-white">
+                
+                <div class="header-card p-6 border-t-8 border-purple-600">
+                    <h2 class="text-2xl font-bold text-white tracking-tight">Vocabulary Warm-up / 生字热身</h2>
+                    <p class="text-indigo-200/80 text-sm mt-1">Match the English words with their Chinese meanings before starting the quiz.</p>
+                </div>
+                
+                <div class="bg-white p-4 md:p-8 flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-sm font-bold text-gray-600">Tap an English word, then tap its Chinese meaning.</span>
+                        <span id="vocab-progress" class="text-purple-700 font-bold bg-purple-100 border border-purple-200 px-3 py-1 rounded-full text-sm">0 / 6 Matched</span>
+                    </div>
+                    
+                    <!-- Scrollable area for cards -->
+                    <div class="flex gap-3 md:gap-6 flex-1 overflow-y-auto max-h-[50vh] p-2 bg-slate-50 rounded-xl border border-slate-100 shadow-inner">
+                        <div id="vocab-en-col" class="flex-1 flex flex-col gap-2"></div>
+                        <div id="vocab-zh-col" class="flex-1 flex flex-col gap-2"></div>
+                    </div>
+
+                    <div class="mt-6 border-t border-gray-100 pt-6 flex justify-end">
+                        <button id="start-quiz-btn" class="bg-gray-400 text-white font-bold py-3 px-8 rounded-lg shadow-md cursor-not-allowed flex items-center gap-2 transition duration-200" disabled>
+                            Start Quiz / 开始答题 ➔
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QUIZ VIEW (Hidden Initially) -->
+            <div id="quiz-view" class="shadow-2xl rounded-2xl overflow-hidden hide flex-col h-full bg-white">
+                
+                <!-- Top Dark Header for Quiz -->
+                <div class="header-card p-6 flex justify-between items-center border-t-8 border-purple-600">
+                    <div>
+                        <h2 class="text-xl font-bold text-white tracking-tight">A fun Halloween story</h2>
+                        <p class="text-indigo-200/80 text-sm mt-1">Player: <span id="display-name" class="font-semibold text-white"></span></p>
+                    </div>
+                    <div class="text-right">
+                        <span id="quiz-progress" class="bg-slate-800 text-slate-300 border border-slate-700 px-4 py-1.5 rounded-full text-sm font-medium">
+                            Question 1 of 12
+                        </span>
+                        <div class="mt-2 text-indigo-300 text-sm font-bold">Score: <span id="current-score" class="text-green-400">0</span></div>
+                    </div>
+                </div>
+
+                <!-- Single Question Container -->
+                <div class="bg-white p-6 md:p-8 rounded-b-2xl flex-1 relative flex flex-col">
+                    <div id="single-question-container" class="flex-1">
+                        <!-- JS injects current question here -->
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="mt-8 border-t border-gray-100 pt-6 flex justify-end">
+                        <button id="next-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg transition duration-200 shadow-md hide flex items-center gap-2">
+                            Next Question / 下一题 ➔
+                        </button>
+                    </div>
+                    <div id="completion-msg" class="text-center mt-6 p-4 rounded-xl bg-purple-50 border border-purple-200 hide">
+                        <p class="text-purple-700 font-bold text-lg mb-1">Quiz Complete! 🎉</p>
+                        <p class="text-purple-600 text-sm">Your score has been automatically submitted to the leaderboard.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Leaderboard -->
+        <div class="lg:w-80 w-full shrink-0">
+            <div class="bg-white rounded-2xl p-6 sticky top-6 shadow-2xl border-t-4 border-t-orange-500">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span>🏆</span> Real-time Leaderboard
+                </h2>
+                <div class="bg-slate-50 rounded-lg p-2 max-h-[60vh] overflow-y-auto border border-slate-100">
+                    <ul id="leaderboard-list" class="space-y-2">
+                        <li class="text-center text-gray-500 text-sm py-4">Loading scores...</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Modal -->
+    <div id="teacher-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-3xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-purple-800 flex items-center gap-2"><span>👨‍🏫</span> Teacher Dashboard</h2>
+                <button id="close-teacher-modal" class="text-gray-400 hover:text-red-500 transition text-3xl font-bold leading-none">&times;</button>
+            </div>
+            
+            <div id="teacher-login-area" class="text-center py-12">
+                <p class="text-gray-500 mb-4">Enter master password to view student records.</p>
+                <input type="password" id="teacher-password" placeholder="••••••••" class="px-4 py-3 border border-gray-300 rounded-lg mb-4 w-64 text-center focus:ring-2 focus:ring-purple-500 outline-none">
+                <br>
+                <button id="teacher-login-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-8 py-3 rounded-lg transition shadow-md">Unlock Dashboard</button>
+                <p id="teacher-error" class="text-red-500 text-sm mt-3 hide font-medium">❌ Incorrect password.</p>
+            </div>
+
+            <div id="teacher-data-area" class="hide flex-1 overflow-hidden flex flex-col">
+                <div class="overflow-y-auto overflow-x-auto flex-1 border border-gray-200 rounded-xl w-full">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Rank</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Score</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date/Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacher-table-body" class="bg-white divide-y divide-gray-100">
+                            <!-- Data populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5K7MqcIxOMbSo7zxtTsKY5bwWkYWp5lI",
+            authDomain: "eng-y5-comprehension-quiz-1.firebaseapp.com",
+            projectId: "eng-y5-comprehension-quiz-1",
+            storageBucket: "eng-y5-comprehension-quiz-1.firebasestorage.app",
+            messagingSenderId: "657036561579",
+            appId: "1:657036561579:web:8d48a184c6c58a41bcfbee",
+            measurementId: "G-YGGJZD1DTB"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const scoresCollectionRef = collection(db, "halloween_quiz_scores"); 
+
+        // Enhanced vocabulary definitions per user request
+        const quizData = [
+            {
+                q: "What treat did Grandma Shannon give Cody and Mimi on Halloween night?",
+                options: ["Sweet candies", "Red apples", "Toy cars", "Pumpkin lanterns"],
+                answer: 0,
+                vocab: "treat: 招待/款待 (礼物)"
+            },
+            {
+                q: "What was inside the huge pumpkin basket near the bench that Mimi pointed out?",
+                options: ["Black plastic toys", "Bat lanterns", "Yummy chocolate", "Colorful ribbons"],
+                answer: 2,
+                vocab: "huge: 巨大的 | pointed out: 指出"
+            },
+            {
+                q: "Who secretly stole Cody and Mimi's candy basket from the bench?",
+                options: ["A girl wearing a witch hat", "A black cat", "A real ghost", "A boy dressed as a skeleton (Martin)"],
+                answer: 3,
+                vocab: "secretly stole: 偷偷地偷走 | skeleton: 骷髅"
+            },
+            {
+                q: "What clue did Cody and Mimi follow to track down the candy thief?",
+                options: ["Footprints on the ground", "Shiny green jelly candies dropped on the ground", "Sounds of breaking tree branches", "A phone map"],
+                answer: 1,
+                vocab: "clue: 线索 | track down: 追踪"
+            },
+            {
+                q: "Where did the trail of green jelly candies lead Cody and Mimi?",
+                options: ["To a school hallway", "To a creepy old yard and abandoned wooden house", "To the back door of a supermarket", "To a park playground"],
+                answer: 1,
+                vocab: "trail: 痕迹/踪迹 | abandoned: 废弃的 | creepy: 令人毛骨悚然的"
+            },
+            {
+                q: "In the spooky dark house, what did the \"two creepy glowing eyes\" turn out to be?",
+                options: ["A wild wolf", "A flashlight beam", "A robot toy", "A funny black cat"],
+                answer: 3,
+                vocab: "spooky: 阴森的/可怕的 | glowing: 发光的"
+            },
+            {
+                q: "What actually caused the scary statue shadow on the wall inside the house?",
+                options: ["A tree branch swaying outside the window", "A real monster statue", "Flying bats", "A lamp on the roof"],
+                answer: 0,
+                vocab: "shadow: 影子 | swaying: 摇摆 | statue: 雕像"
+            },
+            {
+                q: "Who was crying softly under the dusty wooden table?",
+                options: ["Grandma Shannon", "Mimi", "The skeleton boy Martin", "David"],
+                answer: 2,
+                vocab: "softly: 轻轻地 | dusty: 布满灰尘的"
+            },
+            {
+                q: "Why did Martin take their pumpkin candy basket?",
+                options: ["He really wanted some yummy candy that night", "He wanted to hide it forever", "He wanted to sell the candies", "He thought it was his own basket"],
+                answer: 0,
+                vocab: "forever: 永远"
+            },
+            {
+                q: "What suddenly appeared inside the dark house demanding all their sweet candies?",
+                options: ["A swarm of bats", "A supposed \"real ghost\"", "A police officer", "A big white dog"],
+                answer: 1,
+                vocab: "suddenly: 突然地 | demanding: 强求/要求 | swarm: 一大群"
+            },
+            {
+                q: "Who was actually wearing a white sheet to pretend to be the scary ghost?",
+                options: ["A real ghost", "The skeleton boy Martin", "Grandma Shannon", "Their big brother David"],
+                answer: 3,
+                vocab: "pretend: 假装 | sheet: 床单/布"
+            },
+            {
+                q: "What did David give Cody as an apology after revealing his Halloween trick?",
+                options: ["A new pumpkin lamp", "A box of lollipops", "A big chocolate bar", "A teddy bear"],
+                answer: 2,
+                vocab: "apology: 道歉 | revealing: 揭露 | trick: 恶作剧/把戏"
+            }
+        ];
+
+        let currentStudent = { name: '', email: '', score: 0 };
+        let currentIndex = 0;
+        let allScoresData = [];
+
+        // --- NEW VOCAB DATA & LOGIC ---
+        const vocabList = [
+            { en: "trick or treat", zh: "不给糖就捣蛋", color: "#ef4444" },
+            { en: "neighborhood", zh: "街区 / 邻里", color: "#f97316" },
+            { en: "bench", zh: "长椅", color: "#eab308" },
+            { en: "spooky", zh: "阴森的 / 吓人的", color: "#22c55e" },
+            { en: "creepy", zh: "诡异的 / 毛骨悚然", color: "#3b82f6" },
+            { en: "slowpokes", zh: "慢吞吞的人", color: "#a855f7" }
+        ];
+        
+        let selectedEnCard = null;
+        let selectedZhCard = null;
+        let matchedVocabCount = 0;
+
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function initVocabGame() {
+            const enCol = document.getElementById('vocab-en-col');
+            const zhCol = document.getElementById('vocab-zh-col');
+            enCol.innerHTML = '';
+            zhCol.innerHTML = '';
+            matchedVocabCount = 0;
+            document.getElementById('vocab-progress').textContent = `0 / ${vocabList.length} Matched`;
+            
+            const shuffledEn = shuffleArray(vocabList);
+            const shuffledZh = shuffleArray(vocabList);
+
+            shuffledEn.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'vocab-card p-3 rounded-xl border-2 border-gray-200 cursor-pointer text-center text-sm md:text-base font-bold bg-white flex items-center justify-center min-h-[3.5rem]';
+                card.style.color = item.color;
+                card.textContent = item.en;
+                card.dataset.val = item.en;
+                card.dataset.type = 'en';
+                card.dataset.matchColor = item.color;
+                card.onclick = () => handleVocabSelect(card);
+                enCol.appendChild(card);
+            });
+
+            shuffledZh.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'vocab-card p-3 rounded-xl border-2 border-gray-200 cursor-pointer text-center text-sm md:text-base font-medium text-gray-700 bg-white flex items-center justify-center min-h-[3.5rem]';
+                card.textContent = item.zh;
+                card.dataset.val = item.en; // Store English as the matching key
+                card.dataset.type = 'zh';
+                card.dataset.matchColor = item.color;
+                card.onclick = () => handleVocabSelect(card);
+                zhCol.appendChild(card);
+            });
+        }
+
+        function handleVocabSelect(card) {
+            initAudio();
+            const type = card.dataset.type;
+            
+            // Select logic
+            if (type === 'en') {
+                if (selectedEnCard) selectedEnCard.classList.remove('vocab-selected');
+                selectedEnCard = card;
+                selectedEnCard.classList.add('vocab-selected');
+            } else {
+                if (selectedZhCard) selectedZhCard.classList.remove('vocab-selected');
+                selectedZhCard = card;
+                selectedZhCard.classList.add('vocab-selected');
+            }
+
+            // Check match if both selected
+            if (selectedEnCard && selectedZhCard) {
+                checkVocabMatch();
+            }
+        }
+
+        function checkVocabMatch() {
+            const isMatch = selectedEnCard.dataset.val === selectedZhCard.dataset.val;
+            const en = selectedEnCard;
+            const zh = selectedZhCard;
+            
+            // Clear selections immediately to prevent double clicks
+            selectedEnCard = null;
+            selectedZhCard = null;
+
+            if (isMatch) {
+                playCorrectSound();
+                en.classList.remove('vocab-selected');
+                zh.classList.remove('vocab-selected');
+                en.classList.add('vocab-matched', 'correct-anim');
+                zh.classList.add('vocab-matched', 'correct-anim');
+                
+                const matchColor = en.dataset.matchColor;
+                en.style.borderColor = matchColor;
+                en.style.backgroundColor = matchColor + '15'; // Light transparent tint
+                zh.style.color = matchColor;
+                zh.style.borderColor = matchColor;
+                zh.style.backgroundColor = matchColor + '15'; // Light transparent tint
+                
+                matchedVocabCount++;
+                document.getElementById('vocab-progress').textContent = `${matchedVocabCount} / ${vocabList.length} Matched`;
+                
+                if (matchedVocabCount === vocabList.length) {
+                    const startBtn = document.getElementById('start-quiz-btn');
+                    startBtn.disabled = false;
+                    startBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    startBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+                    startBtn.innerHTML = 'Perfect! Start Quiz 🎉 ➔';
+                }
+            } else {
+                playWrongSound();
+                en.classList.add('wrong-anim');
+                zh.classList.add('wrong-anim');
+                
+                setTimeout(() => {
+                    en.classList.remove('vocab-selected', 'wrong-anim');
+                    zh.classList.remove('vocab-selected', 'wrong-anim');
+                }, 500);
+            }
+        }
+        // --- END VOCAB LOGIC ---
+
+        // Web Audio API
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+        }
+
+        function playCorrectSound() {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime); // E5
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playWrongSound() {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.3);
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        const loginForm = document.getElementById('login-form');
+        const loginView = document.getElementById('login-view');
+        const vocabView = document.getElementById('vocab-view');
+        const quizView = document.getElementById('quiz-view');
+        const displayName = document.getElementById('display-name');
+        const singleQuestionContainer = document.getElementById('single-question-container');
+        const scoreDisplay = document.getElementById('current-score');
+        const nextBtn = document.getElementById('next-btn');
+        const quizProgress = document.getElementById('quiz-progress');
+        const leaderboardList = document.getElementById('leaderboard-list');
+
+        function renderCurrentQuestion() {
+            singleQuestionContainer.innerHTML = '';
+            const q = quizData[currentIndex];
+            
+            quizProgress.textContent = `Question ${currentIndex + 1} of ${quizData.length}`;
+            nextBtn.classList.add('hide');
+            
+            const card = document.createElement('div');
+            card.className = 'w-full animate-[fadeIn_0.3s_ease-in-out]';
+            card.id = `q-card-current`;
+            
+            let optionsHtml = '';
+            const indices = [0, 1, 2, 3];
+            const shuffledIndices = shuffleArray(indices);
+            
+            shuffledIndices.forEach((originalIndex, displayIndex) => {
+                const opt = q.options[originalIndex];
+                optionsHtml += `
+                    <label class="flex items-center p-4 rounded-xl border-2 border-gray-100 hover:border-purple-300 hover:bg-purple-50/50 cursor-pointer transition w-full option-label" data-oindex="${originalIndex}">
+                        <input type="radio" name="q_current" value="${originalIndex}" class="mr-4 pointer-events-none w-5 h-5">
+                        <span class="text-gray-800 text-lg font-medium">${['A', 'B', 'C', 'D'][displayIndex]}) ${opt}</span>
+                    </label>
+                `;
+            });
+
+            card.innerHTML = `
+                <div class="mb-6 border-l-4 border-purple-500 pl-4 py-1">
+                    <h3 class="text-2xl font-bold text-gray-900 leading-snug">${q.q}</h3>
+                    <div class="mt-3 inline-flex items-start gap-2 bg-purple-50 text-purple-800 px-3 py-2 rounded-lg border border-purple-100">
+                        <span>💡</span>
+                        <p class="text-sm font-medium tracking-wide leading-relaxed">${q.vocab}</p>
+                    </div>
+                </div>
+                <div class="space-y-3 options-container" id="options-current">
+                    ${optionsHtml}
+                </div>
+                <div id="feedback-current" class="mt-6 hide p-5 rounded-xl border"></div>
+            `;
+            singleQuestionContainer.appendChild(card);
+
+            document.querySelectorAll('.option-label').forEach(label => {
+                label.addEventListener('click', handleOptionSelect);
+            });
+        }
+
+        function handleOptionSelect(e) {
+            initAudio(); 
+            
+            const label = e.currentTarget;
+            const oIndex = parseInt(label.getAttribute('data-oindex'));
+            
+            const card = document.getElementById(`q-card-current`);
+            const optionsContainer = document.getElementById(`options-current`);
+            const feedbackDiv = document.getElementById(`feedback-current`);
+            const correctIndex = quizData[currentIndex].answer;
+
+            if (card.classList.contains('answered')) return;
+            card.classList.add('answered');
+
+            const allLabels = optionsContainer.querySelectorAll('.option-label');
+            allLabels.forEach(lbl => {
+                lbl.classList.remove('hover:border-purple-300', 'hover:bg-purple-50/50', 'cursor-pointer');
+                lbl.classList.add('cursor-default', 'opacity-60');
+                lbl.querySelector('input').disabled = true;
+            });
+
+            label.querySelector('input').checked = true;
+            feedbackDiv.classList.remove('hide');
+
+            if (oIndex === correctIndex) {
+                // Correct
+                currentStudent.score += 1;
+                scoreDisplay.textContent = currentStudent.score;
+                playCorrectSound();
+                
+                label.classList.remove('opacity-60', 'border-gray-100');
+                label.classList.add('bg-green-50', 'border-green-500', 'opacity-100');
+                card.classList.add('correct-anim');
+                
+                feedbackDiv.className = 'mt-6 p-5 rounded-xl bg-green-50 border-2 border-green-200 text-green-800 flex items-center gap-3 shadow-sm';
+                feedbackDiv.innerHTML = `<span class="text-2xl">✅</span> <div><strong class="block text-lg">Correct! / 答对了！</strong><span class="text-sm opacity-90">Great job.</span></div>`;
+            } else {
+                // Wrong
+                playWrongSound();
+                
+                label.classList.remove('opacity-60', 'border-gray-100');
+                label.classList.add('bg-red-50', 'border-red-500', 'opacity-100');
+                
+                const correctLabel = optionsContainer.querySelector(`[data-oindex="${correctIndex}"]`);
+                correctLabel.classList.remove('opacity-60');
+                correctLabel.classList.add('bg-green-50', 'border-green-400', 'opacity-100');
+                
+                card.classList.add('wrong-anim');
+                
+                const correctTextFull = correctLabel.querySelector('span').textContent;
+                
+                // Show Correct Answer - NO YOUTUBE LINK
+                feedbackDiv.className = 'mt-6 p-5 rounded-xl bg-red-50 border-2 border-red-200 text-red-800 shadow-sm';
+                feedbackDiv.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <span class="text-2xl">❌</span>
+                        <div>
+                            <p class="font-bold text-lg mb-1">Incorrect. / 答错了。</p>
+                            <p class="text-md text-red-900 bg-white/60 p-2 rounded border border-red-100 mt-2">
+                                <span class="font-semibold text-gray-600 text-sm block mb-1">Correct Answer 正确答案:</span>
+                                <strong>${correctTextFull}</strong>
+                            </p>
+                        </div>
+                    </div>
+            `;
+            }
+
+            // Show Next or Auto Submit
+            if (currentIndex < quizData.length - 1) {
+                nextBtn.classList.remove('hide');
+            } else {
+                autoSubmitScore();
+            }
+        }
+
+        async function autoSubmitScore() {
+            const completionMsg = document.getElementById('completion-msg');
+            completionMsg.classList.remove('hide');
+            completionMsg.innerHTML = `<p class="text-purple-700 font-bold text-lg mb-1">Submitting score... ⏳</p>`;
+            
+            try {
+                await addDoc(scoresCollectionRef, {
+                    name: currentStudent.name,
+                    email: currentStudent.email,
+                    score: currentStudent.score,
+                    total: quizData.length,
+                    timestamp: serverTimestamp()
+                });
+                completionMsg.innerHTML = `
+                    <p class="text-green-700 font-bold text-lg mb-1">Quiz Complete! 🎉</p>
+                    <p class="text-green-600 text-sm">Your score has been automatically submitted to the leaderboard.</p>
+                `;
+                completionMsg.className = "text-center mt-6 p-4 rounded-xl bg-green-50 border border-green-200";
+                
+                triggerConfetti();
+
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                completionMsg.innerHTML = `
+                    <p class="text-red-700 font-bold text-lg mb-1">⚠️ Error saving score.</p>
+                    <p class="text-red-600 text-sm">Please check your connection or database permissions.</p>
+                `;
+                completionMsg.className = "text-center mt-6 p-4 rounded-xl bg-red-50 border border-red-200";
+            }
+        }
+
+        function triggerConfetti() {
+            const duration = 3000;
+            const end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#a855f7', '#3b82f6', '#22c55e']
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#ef4444', '#f97316', '#eab308']
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('student-name').value.trim();
+            const email = document.getElementById('student-email').value.trim();
+            const errorMsg = document.getElementById('email-error');
+
+            if (!email.endsWith('@moe-dl.edu.my')) {
+                errorMsg.classList.remove('hide');
+                return;
+            }
+
+            errorMsg.classList.add('hide');
+            currentStudent.name = name;
+            currentStudent.email = email;
+            
+            displayName.textContent = name;
+            loginView.classList.add('hide');
+            
+            // Go to Vocab View instead of Quiz View directly
+            vocabView.classList.remove('hide');
+            vocabView.classList.add('flex');
+            initVocabGame();
+        });
+
+        document.getElementById('start-quiz-btn').addEventListener('click', () => {
+            vocabView.classList.add('hide');
+            vocabView.classList.remove('flex');
+            quizView.classList.remove('hide');
+            quizView.classList.add('flex');
+            renderCurrentQuestion();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            currentIndex++;
+            renderCurrentQuestion();
+        });
+
+        const qList = query(scoresCollectionRef, orderBy('score', 'desc'));
+        onSnapshot(qList, (snapshot) => {
+            allScoresData = [];
+            leaderboardList.innerHTML = '';
+            
+            let rank = 1;
+            snapshot.forEach((doc) => {
+                allScoresData.push(doc.data());
+            });
+            
+            allScoresData.sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                const timeA = a.timestamp ? a.timestamp.toMillis() : Date.now();
+                const timeB = b.timestamp ? b.timestamp.toMillis() : Date.now();
+                return timeA - timeB; // Sort older first for ties
+            });
+            
+            allScoresData.forEach((data) => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center justify-between p-3 bg-white rounded-lg shadow-sm border border-slate-100 hover:bg-slate-50 transition';
+                
+                let rankTrophy = `${rank}. `;
+                if (rank === 1) rankTrophy = '🥇 ';
+                else if (rank === 2) rankTrophy = '🥈 ';
+                else if (rank === 3) rankTrophy = '🥉 ';
+
+                li.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="font-bold text-gray-500 w-6">${rankTrophy}</span>
+                        <span class="font-medium text-gray-800 truncate" title="${data.name}">${data.name}</span>
+                    </div>
+                    <span class="font-bold text-purple-700 bg-purple-100/50 border border-purple-200 px-2 py-1 rounded text-sm shrink-0 shadow-inner">${data.score} / ${data.total}</span>
+                `;
+                leaderboardList.appendChild(li);
+                rank++;
+            });
+
+            if (allScoresData.length === 0) {
+                leaderboardList.innerHTML = '<li class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">No scores yet.<br>Be the first to finish! 🏁</li>';
+            }
+        }, (error) => {
+            if (error.code === 'permission-denied') {
+                leaderboardList.innerHTML = '<li class="text-center text-red-500 text-sm py-4">Database Access Denied.<br><span class="text-xs text-gray-500">Teacher: Update Firestore Rules to allow read/write.</span></li>';
+            } else {
+                leaderboardList.innerHTML = '<li class="text-center text-red-500 text-sm py-4">Error loading scores.</li>';
+            }
+        });
+
+        const teacherBtn = document.getElementById('teacher-access-btn');
+        const teacherModal = document.getElementById('teacher-modal');
+        const closeTeacherModal = document.getElementById('close-teacher-modal');
+        const teacherLoginBtn = document.getElementById('teacher-login-btn');
+        const teacherPasswordInput = document.getElementById('teacher-password');
+        const teacherLoginArea = document.getElementById('teacher-login-area');
+        const teacherDataArea = document.getElementById('teacher-data-area');
+        const teacherTableBody = document.getElementById('teacher-table-body');
+        const teacherError = document.getElementById('teacher-error');
+
+        teacherBtn.addEventListener('click', () => {
+            teacherModal.classList.remove('hidden');
+            teacherPasswordInput.focus();
+        });
+
+        closeTeacherModal.addEventListener('click', () => {
+            teacherModal.classList.add('hidden');
+            teacherPasswordInput.value = '';
+            teacherError.classList.add('hide');
+            teacherDataArea.classList.add('hide');
+            teacherLoginArea.classList.remove('hide');
+        });
+
+        teacherPasswordInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') teacherLoginBtn.click();
+        });
+
+        teacherLoginBtn.addEventListener('click', () => {
+            if (teacherPasswordInput.value === '2020Hui%%') {
+                teacherLoginArea.classList.add('hide');
+                teacherDataArea.classList.remove('hide');
+                renderTeacherTable();
+            } else {
+                teacherError.classList.remove('hide');
+            }
+        });
+
+        function renderTeacherTable() {
+            teacherTableBody.innerHTML = '';
+            let rank = 1;
+            allScoresData.forEach(data => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                let dateStr = "N/A";
+                if (data.timestamp) {
+                    const date = data.timestamp.toDate();
+                    dateStr = date.toLocaleString();
+                }
+                
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-500">${rank}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">${data.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.email}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-purple-700 font-extrabold bg-purple-50/50">${data.score} / ${data.total}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
+                `;
+                teacherTableBody.appendChild(tr);
+                rank++;
+            });
+        }
+    </script>
+</body>
+</html>
